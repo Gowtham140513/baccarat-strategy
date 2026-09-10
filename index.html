@@ -1,0 +1,1415 @@
+<title>Baccarat Live Strategy Tracker (Local)</title>
+<style>
+:root {
+  --bg: #f6f7f5; --surface: #ffffff; --border: #dde2df; --text: #1c2624;
+  --text-dim: #5b655f; --accent: #1f6f5c; --accent-soft: #e2ede9;
+  --win: #1d8a4c; --loss: #e0685c; --pending: #b98a1f; --road-blue: #3767c9;
+  --win-fill: rgba(29,138,76,0.14); --loss-fill: rgba(224,104,92,0.14); --pending-fill: rgba(185,138,31,0.14);
+  --mono: ui-monospace, "SF Mono", "Menlo", "Consolas", monospace;
+  --serif: ui-serif, Georgia, "Iowan Old Style", serif;
+  --sans: -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:#101613; --surface:#17201c; --border:#2a352f; --text:#e7ede9;
+    --text-dim:#8fa199; --accent:#4fb89a; --accent-soft:#1c2b25;
+    --win:#4ade80; --loss:#ff8a80; --pending:#f0c14b; --road-blue:#7ea6ff;
+    --win-fill: rgba(74,222,128,0.14); --loss-fill: rgba(255,138,128,0.14); --pending-fill: rgba(240,193,75,0.14);
+  }
+}
+:root[data-theme="dark"] {
+  --bg:#101613; --surface:#17201c; --border:#2a352f; --text:#e7ede9; --text-dim:#8fa199;
+  --accent:#4fb89a; --accent-soft:#1c2b25; --win:#4ade80; --loss:#ff8a80; --pending:#f0c14b; --road-blue:#7ea6ff;
+  --win-fill: rgba(74,222,128,0.14); --loss-fill: rgba(255,138,128,0.14); --pending-fill: rgba(240,193,75,0.14);
+}
+:root[data-theme="light"] {
+  --bg:#f6f7f5; --surface:#ffffff; --border:#dde2df; --text:#1c2624; --text-dim:#5b655f;
+  --accent:#1f6f5c; --accent-soft:#e2ede9; --win:#1d8a4c; --loss:#e0685c; --pending:#b98a1f; --road-blue:#3767c9;
+  --win-fill: rgba(29,138,76,0.14); --loss-fill: rgba(224,104,92,0.14); --pending-fill: rgba(185,138,31,0.14);
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--text); font-family: var(--sans);
+  margin: 0; padding: 2rem 1.1rem 4rem; display: flex; justify-content: center;
+}
+.page { width: 100%; max-width: 980px; display: flex; flex-direction: column; gap: 1.2rem; }
+h1 { font-family: var(--serif); font-size: 1.5rem; font-weight: 600; margin: 0; text-wrap: balance; }
+h2 { font-family: var(--serif); font-size: 1.02rem; font-weight: 600; margin: 0 0 0.6rem; }
+.subtitle { color: var(--text-dim); font-size: 0.85rem; }
+.note {
+  font-size: 0.78rem; color: var(--text-dim); border-left: 3px solid var(--accent);
+  padding: 0.55rem 0.85rem; background: var(--surface); border-radius: 0 6px 6px 0;
+}
+.note.warn { border-left-color: var(--pending); }
+.panel {
+  border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+  padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: 0.8rem;
+}
+.row { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+.row.between { justify-content: space-between; }
+.sticky-topbar {
+  position: sticky; top: 0; z-index: 20; background: var(--bg);
+  padding: 0.6rem 0; border-bottom: 1px solid var(--border);
+}
+button {
+  font-family: var(--sans); font-size: 0.82rem; font-weight: 600; padding: 0.5rem 0.9rem;
+  border: 1px solid var(--accent); border-radius: 6px; background: var(--accent-soft);
+  color: var(--accent); cursor: pointer;
+}
+button:hover { filter: brightness(0.97); }
+button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button.big { font-size: 1.05rem; padding: 0.75rem 1.8rem; }
+button.big.p { border-color: var(--road-blue); background: transparent; color: var(--text); }
+button.big.b { border-color: var(--loss); background: transparent; color: var(--text); }
+button.big.t { border-color: var(--text-dim); background: transparent; color: var(--text); }
+button.small { font-size: 0.7rem; padding: 0.3rem 0.55rem; }
+
+/* grids */
+.grid6 { display: grid; grid-template-columns: 2.6rem repeat(6, 1fr); gap: 3px; width: 100%; overflow-x: auto; }
+.grid6 .hdr { font-size: 0.68rem; color: var(--text-dim); text-align: center; padding: 0.25rem 0; }
+.grid6 .rowlabel { font-size: 0.68rem; color: var(--text-dim); display: flex; align-items: center; justify-content: center; }
+.setup-cell {
+  font-family: var(--mono); font-weight: 700; font-size: 0.88rem;
+  border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text);
+  padding: 0.4rem 0; text-align: center; cursor: pointer; user-select: none; min-width: 2.4rem;
+}
+.setup-cell.P { color: var(--road-blue); }
+.setup-cell.B { color: var(--loss); }
+.setup-cell[disabled] { cursor: default; opacity: 0.85; }
+.actual-cell {
+  border: 1px solid var(--border); border-radius: 6px; padding: 0.3rem 0.15rem;
+  display: flex; align-items: center; justify-content: center; min-height: 2.3rem;
+  font-family: var(--mono); font-weight: 700; font-size: 0.95rem; background: var(--bg); cursor: pointer;
+}
+.actual-cell.P { color: var(--road-blue); }
+.actual-cell.B { color: var(--loss); }
+.actual-cell.T { color: var(--pending); }
+.actual-cell.empty { color: var(--border); cursor: default; }
+.actual-cell.next { outline: 2px solid var(--accent); outline-offset: -2px; }
+.actual-cell.correcting { background: var(--accent-soft); outline: 3px solid var(--text); outline-offset: -3px; box-shadow: 0 2px 6px rgba(0,0,0,0.25); }
+
+/* prediction cards */
+.pred-cards { display: flex; flex-wrap: wrap; gap: 0.7rem; }
+.pred-card {
+  border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.8rem;
+  background: var(--bg); flex: 1 1 200px; display: flex; flex-direction: column; gap: 0.25rem;
+}
+.pred-card .title { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); }
+.pred-card .signal { font-family: var(--mono); font-size: 1.2rem; font-weight: 700; }
+.pred-card .detail { font-family: var(--mono); font-size: 0.72rem; color: var(--text-dim); }
+.pred-card .label { font-size: 0.72rem; font-weight: 700; color: var(--accent); }
+.pred-card.win { background: var(--win-fill); border-color: var(--win); }
+.pred-card.loss { background: var(--loss-fill); border-color: var(--loss); }
+.pred-card.pending .status { color: var(--pending); }
+.pred-card .status { font-size: 0.72rem; font-weight: 700; }
+.pred-card.win .status { color: var(--win); }
+.pred-card.loss .status { color: var(--loss); }
+
+.agree-banner {
+  border-radius: 8px; padding: 0.7rem 0.9rem; font-weight: 700; font-size: 0.9rem;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.agree-banner.agree { background: var(--win-fill); color: var(--win); border: 1px solid var(--win); }
+.agree-banner.conflict { background: var(--pending-fill); color: var(--pending); border: 1px solid var(--pending); }
+
+/* stage + stats */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.stat { background: var(--surface); padding: 0.8rem 0.6rem; display: flex; flex-direction: column; gap: 0.15rem; }
+.stat .label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); }
+.stat .value { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 1.1rem; font-weight: 600; }
+
+/* history table */
+.table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); max-height: 420px; overflow-y: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.76rem; min-width: 820px; }
+thead th {
+  text-align: left; font-size: 0.63rem; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-dim); padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--surface);
+}
+td { padding: 0.36rem 0.6rem; border-bottom: 1px solid var(--border); font-family: var(--mono); white-space: nowrap; }
+tr:last-child td { border-bottom: none; }
+td.win { color: var(--win); font-weight: 600; }
+td.loss { color: var(--loss); font-weight: 600; }
+td.pending { color: var(--pending); font-weight: 600; }
+tr.corrected td { opacity: 0.55; text-decoration: line-through; }
+
+.badge { font-size: 0.68rem; font-weight: 700; padding: 0.1rem 0.4rem; border-radius: 4px; }
+.badge.win { background: var(--win-fill); color: var(--win); }
+.badge.fail { background: var(--loss-fill); color: var(--loss); }
+.badge.pending { background: var(--pending-fill); color: var(--pending); }
+</style>
+
+<div class="page">
+  <div class="row between sticky-topbar" id="topBar" style="display:none;">
+    <span class="subtitle" style="margin:0;">Baccarat Live Strategy Tracker (LOCAL)</span>
+    <button id="editSetupBtn" class="small">Edit setup / restart</button>
+  </div>
+  <div>
+    <h1>Baccarat Live Strategy Tracker <span style="color:var(--pending);">(LOCAL)</span></h1>
+    <div class="subtitle">Pattern-tracking tool, not a mathematical guarantee of outcomes. 70%/90%/95% are your own strategy labels, never calculated or verified against results.</div>
+  </div>
+
+  <div class="row"><button id="toggleAssumptionsBtn" class="small">Show rules &amp; assumptions</button></div>
+  <div class="note warn" id="assumptionsNote" style="display:none;"></div>
+
+  <!-- SECTION 1: PREDEFINED GRID -->
+  <div class="panel" id="setupPanel">
+    <h2>1. Predefined 4x6 grid</h2>
+    <div class="grid6" id="predefinedGridEl"></div>
+    <div class="row">
+      <button id="randomizeBtn">Randomize</button>
+      <button id="lockBtn" class="primary">Lock &amp; start live tracking</button>
+    </div>
+    <div class="note warn" id="setupWarningNote" style="display:none;"></div>
+  </div>
+
+  <!-- SECTION 2: ACTUAL LIVE GRID + INPUT -->
+  <div class="panel" id="livePanel" style="display:none;">
+    <div class="row between">
+      <h2 style="margin:0;">2. Actual live grid</h2>
+    </div>
+    <div class="grid6" id="actualGridEl"></div>
+    <div class="note" id="correctionPanel" style="display:none;"></div>
+
+    <div class="note" id="statusNote"></div>
+
+    <div class="row">
+      <button class="big p" id="btnP">P</button>
+      <button class="big b" id="btnB">B</button>
+      <button class="big t" id="btnT">T (Tie)</button>
+      <button class="small" id="btnSuper6">Mark last Banker win as Super 6</button>
+    </div>
+    <div class="note" id="super6Warning" style="display:none; color:#b45309;"></div>
+  </div>
+
+  <!-- SECTION 3+4: CURRENT PREDICTIONS / SIGNALS -->
+  <div class="panel" id="predPanel" style="display:none;">
+    <h2>3-4. Current predictions &amp; strategy signals</h2>
+    <div id="agreeBanner"></div>
+    <div class="pred-cards" id="predCards"></div>
+    <div class="row"><button id="toggleDetailBtn" class="small" style="display:none;">Show latest result details</button></div>
+    <div class="pred-cards" id="detailCards" style="display:none;"></div>
+  </div>
+
+  <!-- SECTION 5: SIDE BETS -->
+  <div class="panel" id="sideBetPanel" style="display:none;">
+    <h2>5. Side-bet opportunities</h2>
+    <div id="sideBetContent" class="subtitle">No side-bet signal right now.</div>
+  </div>
+
+  <!-- SECTION 6: BETTING PROGRESSION -->
+  <div class="panel" id="stagePanel" style="display:none;">
+    <h2>6. Betting progression</h2>
+    <div class="stat-grid">
+      <div class="stat"><span class="label">Stage</span><span class="value" id="stageValue">-</span></div>
+      <div class="stat"><span class="label">Active rows</span><span class="value" id="activeRowsValue">-</span></div>
+      <div class="stat"><span class="label">Wins</span><span class="value" id="winsValue">0</span></div>
+      <div class="stat"><span class="label">Losses</span><span class="value" id="lossesValue">0</span></div>
+      <div class="stat"><span class="label">Win rate</span><span class="value" id="winRateValue">-</span></div>
+    </div>
+    <div class="row"><button id="resetStageBtn" class="small">Reset to Stage 1</button></div>
+    <div class="note" id="activeBetNote" style="font-weight:600;"></div>
+    <div class="row"><button id="toggleBreakdownBtn" class="small">Show breakdown by confidence label</button></div>
+    <div class="table-wrap" id="breakdownWrap" style="display:none; max-height:none;">
+      <table>
+        <thead>
+          <tr><th>Label</th><th>Wins</th><th>Losses</th><th>Win rate</th></tr>
+        </thead>
+        <tbody id="breakdownBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SECTION 7: AUDIT HISTORY -->
+  <div class="panel" id="historyPanel" style="display:none;">
+    <h2>7. Audit history</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Time</th><th>Col</th><th>Row</th><th>Strategy</th><th>Method</th><th>Prediction</th><th>Actual</th><th>Status</th><th>Label</th><th>Stage</th></tr>
+        </thead>
+        <tbody id="historyBody"></tbody>
+      </table>
+    </div>
+    <div class="note" id="saveStatusNote">No save attempted yet.</div>
+    <div class="row"><button id="viewSavedBtn" class="small">View saved data (debug)</button></div>
+    <pre id="viewSavedOutput" style="display:none; white-space:pre-wrap; word-break:break-word; font-size:0.72rem; max-height:300px; overflow:auto; background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:0.6rem; margin-top:0.4rem;"></pre>
+  </div>
+</div>
+
+<script>
+/* State persists to this browser's localStorage -- see the SAVE / RESUME
+   section near the bottom of this script. No Claude.ai / artifact
+   dependency: this file is a fully standalone local HTML page. */
+
+/* =========================================================================
+   STRATEGY ENGINE -- pure functions, no DOM access. Extend here for future
+   strategies (Row 1, additional side bets) without touching the UI.
+   ========================================================================= */
+
+function opposite(v) { return v === "P" ? "B" : "P"; }
+
+// Generic core reused by Row3-Method1: compare liveSeq against the
+// first liveSeq.length values of referenceSeq, count differences (k), then
+// predict referenceSeq's last value flipped if the target total difference
+// count is still needed, otherwise predict it unchanged.
+function calculatePatternSignal(referenceSeq, liveSeq, targetDiff = 1) {
+  let k = 0;
+  for (let i = 0; i < liveSeq.length; i++) if (liveSeq[i] !== referenceSeq[i]) k++;
+  const needed = targetDiff - k;
+  const lastRef = referenceSeq[referenceSeq.length - 1];
+  return { signal: needed >= 1 ? opposite(lastRef) : lastRef, diffCount: k, needed };
+}
+
+// Reusable three-value pattern function (Row2-Method2, Row3-Method2):
+// verified against all user examples (PPP->B, PPB->P, PBP->P).
+function threeValuePattern(v1, v2, v3) {
+  return calculatePatternSignal([v1, v2], [v3], 1).signal;
+}
+
+function calculateRow2Method1(predefinedRow1, predefinedRow2, liveRow1) {
+  // Explicitly a DIFFERENT rule than the generic engine -- literal per spec.
+  const isOpposite = liveRow1 !== predefinedRow1;
+  return isOpposite ? predefinedRow2 : opposite(predefinedRow2);
+}
+function calculateRow2Method2(prevRow1, prevRow2, curRow1) {
+  return threeValuePattern(prevRow1, prevRow2, curRow1);
+}
+function calculateRow2Final(method1, method2) {
+  // ASSUMPTION per spec section 5: ties go to opposite of Method 1.
+  return method1 === method2 ? method1 : opposite(method1);
+}
+
+// Row 3 - Method 1 rule (updated, confirmed with the user): same even/odd
+// parity principle as Row 4. Count how many of R1,R2 differ from the
+// predefined pattern. EVEN count (0 or 2) -> flip predefined R3. ODD count
+// (1) -> keep predefined R3 unchanged.
+function calculateRow3Method1(predefinedCol3, liveRow12) {
+  let k = 0;
+  for (let i = 0; i < liveRow12.length; i++) if (liveRow12[i] !== predefinedCol3[i]) k++;
+  const predefinedR3 = predefinedCol3[2];
+  return (k % 2 === 0) ? opposite(predefinedR3) : predefinedR3;
+}
+function calculateRow3Method2(prevRow2, prevRow3, curRow2) {
+  return threeValuePattern(prevRow2, prevRow3, curRow2);
+}
+function calculateRow3Final(method1, method2) {
+  // ASSUMPTION (flagged in UI): spec says "opposite according to the user's
+  // confirmation rule" without restating it -- reusing Row 2's explicit
+  // rule (opposite of Method 1) since that's the only defined mechanism
+  // for a Method1/Method2 disagreement anywhere in the spec.
+  return method1 === method2 ? method1 : opposite(method1);
+}
+
+// Row 4 rule (confirmed with the user): count how many of R1-R3 differ from
+// the predefined pattern. EVEN count (0 or 2) -> flip predefined R4. ODD
+// count (1 or 3) -> keep predefined R4 unchanged. Standalone from
+// calculatePatternSignal (which only flips on a zero-difference match) --
+// this is a deliberately different rule, specific to Row 4.
+function calculateRow4Signal(predefinedCol4, liveRow123) {
+  let k = 0;
+  for (let i = 0; i < liveRow123.length; i++) if (liveRow123[i] !== predefinedCol4[i]) k++;
+  const predefinedR4 = predefinedCol4[3];
+  return (k % 2 === 0) ? opposite(predefinedR4) : predefinedR4;
+}
+
+// Box classification: parity of P-count. Verified against all 16 combos.
+function classifyBox(cells) {
+  const pCount = cells.filter(v => v === "P").length;
+  return pCount % 2 === 0 ? "Same" : "Opposite";
+}
+
+// Given 3 known cells of a box and a required Same/Opposite classification
+// for the completed box, solve the 4th cell. Verified exhaustively (16/16).
+function solveTargetForClassification(knownThree, requiredClass) {
+  for (const candidate of ["P", "B"]) {
+    if (classifyBox([...knownThree, candidate]) === requiredClass) return candidate;
+  }
+}
+
+// Three-box strategy: only SSS->Opposite and OOO->Same are defined by the
+// spec. Any mixed pattern has no defined rule -- per the spec's own
+// instruction (section 21), this returns null (NEEDS CLARIFICATION) rather
+// than inventing a rule, instead of silently guessing.
+function calculateThreeBoxExpected(box1Class, box2Class, box3Class) {
+  if (box1Class === "Same" && box2Class === "Same" && box3Class === "Same") return "Opposite";
+  if (box1Class === "Opposite" && box2Class === "Opposite" && box3Class === "Opposite") return "Same";
+  return null; // NEEDS CLARIFICATION -- mixed pattern not defined in spec
+}
+
+// Six-box strategy: complete 32-entry lookup, built and verified (see
+// verify_sixbox.js) to cover every possible 5-length S/O combination with
+// no gaps, exactly per the user's explicit order-sensitive rules.
+const SIX_BOX_TABLE = (function () {
+  const t = {};
+  t["SSSSS"] = "O";
+  t["SSSSO"] = "O"; t["SSSOS"] = "S"; t["SSOSS"] = "S"; t["SOSSS"] = "O"; t["OSSSS"] = "S";
+  function permutations(chars) {
+    const results = new Set();
+    (function permute(arr, m) {
+      if (arr.length === 0) results.add(m.join(""));
+      else for (let i = 0; i < arr.length; i++) {
+        const cur = arr.slice(); const next = cur.splice(i, 1);
+        permute(cur, m.concat(next));
+      }
+    })(chars, []);
+    return Array.from(results);
+  }
+  for (const p of permutations(["S", "S", "S", "O", "O"])) t[p] = "S";
+  for (const p of permutations(["S", "S", "O", "O", "O"])) t[p] = "O";
+  t["SOOOO"] = "O"; t["OSOOO"] = "S"; t["OOSOO"] = "O"; t["OOOSO"] = "O"; t["OOOOS"] = "S";
+  t["OOOOO"] = "S";
+  return t;
+})();
+
+function calculateSixBoxExpected(box1to5Classes) {
+  const key = box1to5Classes.map(c => c === "Same" ? "S" : "O").join("");
+  const letter = SIX_BOX_TABLE[key]; // always defined -- all 32 keys present
+  return letter === "S" ? "Same" : "Opposite"; // match classifyBox()'s output format
+}
+
+const STAGE_ROWS = { 1: [4], 2: [3, 4], 3: [2, 3, 4], 4: [] };
+
+function updateBettingStage(currentStage, outcome) {
+  // outcome = { activeResults: { row2: bool|null, row3: bool|null, row4: bool|null } }
+  const a = outcome.activeResults;
+  if (currentStage === 1) return a.row4 ? 2 : 1;
+  if (currentStage === 2) {
+    if (a.row3 == null) return a.row4 ? 2 : 1;
+    return (a.row3 && a.row4) ? 3 : 1;
+  }
+  if (currentStage === 3) {
+    if (a.row2 == null) return (a.row3 && a.row4) ? 3 : 1;
+    return (a.row2 && a.row3 && a.row4) ? 4 : 1; // 4 = HOLD
+  }
+  return currentStage; // 4 = HOLD, stays until manual reset
+}
+
+/* =========================================================================
+   STATE
+   ========================================================================= */
+const COLS = 6, ROWS = 4;
+let predefinedGrid = Array.from({ length: COLS }, () => ["P", "P", "B", "B"]);
+let setupLocked = false;
+
+let actualGrid = Array.from({ length: COLS }, () => [null, null, null, null]); // 'P'|'B'|null -- a Tie never occupies a slot
+let sideBets = {}; // key "c,r" -> { super6: true }
+let tieMemory = {}; // key "c,r" -> count of Ties seen while THIS slot is still waiting for a real P/B result
+let history = []; // audit history, append-only (corrections add new rows + flag old)
+let predictionIndex = {}; // key "c,r,strategy" -> index into history (for resolving PENDING)
+let bettingStage = 1;
+let wins = 0, losses = 0;
+let lastEntered = null; // { col, row, value }
+let historyIdCounter = 1;
+let correctingCell = null; // { col, row } -- which already-filled cell is being corrected right now
+
+function recordPrediction(entry) {
+  // entry: { column, row, strategy, method, prediction, label }
+  const rec = {
+    id: historyIdCounter++, time: new Date().toLocaleTimeString(),
+    column: entry.column, row: entry.row, strategy: entry.strategy, method: entry.method,
+    prediction: entry.prediction, actual: null, status: "PENDING",
+    label: entry.label || "", stage: bettingStageLabel(), corrected: false,
+  };
+  history.push(rec);
+  predictionIndex[`${entry.column},${entry.row},${entry.strategy}`] = rec.id;
+  return rec;
+}
+
+function resolvePrediction(column, row, strategy, actualValue) {
+  const id = predictionIndex[`${column},${row},${strategy}`];
+  if (id == null) return;
+  const rec = history.find(h => h.id === id);
+  if (!rec || rec.status !== "PENDING") return;
+  rec.actual = actualValue;
+  rec.status = (rec.prediction === actualValue) ? "WIN" : "FAIL";
+  return rec;
+}
+
+function recordActualOnlyRow(column, row, value) {
+  history.push({
+    id: historyIdCounter++, time: new Date().toLocaleTimeString(),
+    column, row, strategy: "-", method: "-", prediction: "-",
+    actual: value, status: "-", label: "", stage: bettingStageLabel(), corrected: false,
+  });
+}
+
+function bettingStageLabel() {
+  return bettingStage === 4 ? "Stage 4 (HOLD)" : `Stage ${bettingStage} (${STAGE_ROWS[bettingStage].map(r => "R" + r).join("+")})`;
+}
+
+/* =========================================================================
+   SETUP UI
+   ========================================================================= */
+const predefinedGridEl = document.getElementById("predefinedGridEl");
+
+// Every column must have exactly 2 P and 2 B (confirmed with the user).
+function isColumnBalanced(col) {
+  return col.filter(v => v === "P").length === 2;
+}
+
+function shuffledBalancedColumn() {
+  const vals = ["P", "P", "B", "B"];
+  for (let i = vals.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [vals[i], vals[j]] = [vals[j], vals[i]];
+  }
+  return vals;
+}
+
+function renderPredefinedGrid() {
+  predefinedGridEl.innerHTML = "";
+  predefinedGridEl.appendChild(document.createElement("div"));
+  const unbalancedCols = [];
+  for (let c = 0; c < COLS; c++) {
+    const h = document.createElement("div"); h.className = "hdr";
+    const pCount = predefinedGrid[c].filter(v => v === "P").length;
+    if (pCount !== 2) { unbalancedCols.push(c + 1); h.style.color = "var(--loss)"; }
+    h.textContent = "C" + (c + 1) + " (" + pCount + "P/" + (ROWS - pCount) + "B)";
+    predefinedGridEl.appendChild(h);
+  }
+  for (let r = 0; r < ROWS; r++) {
+    const rl = document.createElement("div"); rl.className = "hdr"; rl.textContent = "R" + (r + 1);
+    predefinedGridEl.appendChild(rl);
+    for (let c = 0; c < COLS; c++) {
+      const cell = document.createElement("button");
+      const val = predefinedGrid[c][r];
+      cell.className = "setup-cell " + val;
+      cell.textContent = val;
+      cell.disabled = setupLocked;
+      cell.addEventListener("click", () => {
+        predefinedGrid[c][r] = predefinedGrid[c][r] === "P" ? "B" : "P";
+        renderPredefinedGrid();
+      });
+      predefinedGridEl.appendChild(cell);
+    }
+  }
+  const warnNote = document.getElementById("setupWarningNote");
+  const lockBtn = document.getElementById("lockBtn");
+  if (unbalancedCols.length > 0) {
+    warnNote.style.display = "block";
+    warnNote.textContent = "Column" + (unbalancedCols.length > 1 ? "s " : " ") + unbalancedCols.join(", ") +
+      " must have exactly 2 P and 2 B before you can lock. Click cells to fix.";
+    lockBtn.disabled = true;
+  } else {
+    warnNote.style.display = "none";
+    lockBtn.disabled = false;
+  }
+}
+
+document.getElementById("randomizeBtn").addEventListener("click", () => {
+  predefinedGrid = Array.from({ length: COLS }, () => shuffledBalancedColumn());
+  renderPredefinedGrid();
+});
+
+document.getElementById("lockBtn").addEventListener("click", () => {
+  if (predefinedGrid.some(col => !isColumnBalanced(col))) return;
+  setupLocked = true;
+  renderPredefinedGrid();
+  ["topBar", "livePanel", "predPanel", "sideBetPanel", "stagePanel", "historyPanel"].forEach(id => {
+    document.getElementById(id).style.display = "flex";
+  });
+  renderActualGrid();
+  renderPredictions();
+  renderStagePanel();
+  renderHistory();
+  saveState();
+});
+
+// Native confirm()/alert() dialogs are blocked in the sandboxed artifact
+// iframe (no allow-modals), so confirm() silently returns false/undefined
+// and the click did nothing. Two-click in-page confirm instead.
+const editSetupBtn = document.getElementById("editSetupBtn");
+const editSetupBtnLabel = editSetupBtn.textContent;
+let editSetupArmTimeout = null;
+editSetupBtn.addEventListener("click", () => {
+  if (editSetupBtn.dataset.armed !== "1") {
+    editSetupBtn.dataset.armed = "1";
+    editSetupBtn.textContent = "Click again to confirm reset";
+    clearTimeout(editSetupArmTimeout);
+    editSetupArmTimeout = setTimeout(() => {
+      editSetupBtn.dataset.armed = "";
+      editSetupBtn.textContent = editSetupBtnLabel;
+    }, 4000);
+    return;
+  }
+  clearTimeout(editSetupArmTimeout);
+  editSetupBtn.dataset.armed = "";
+  editSetupBtn.textContent = editSetupBtnLabel;
+
+  setupLocked = false;
+  actualGrid = Array.from({ length: COLS }, () => [null, null, null, null]);
+  sideBets = {}; tieMemory = {}; history = []; predictionIndex = {}; bettingStage = 1; wins = 0; losses = 0;
+  lastEntered = null; historyIdCounter = 1; colProgressed = {}; correctingCell = null;
+  renderPredefinedGrid();
+  ["topBar", "livePanel", "predPanel", "sideBetPanel", "stagePanel", "historyPanel"].forEach(id => {
+    document.getElementById(id).style.display = "none";
+  });
+  saveState();
+});
+
+/* =========================================================================
+   NEXT-CELL LOGIC
+   ========================================================================= */
+function findNextCell() {
+  for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < ROWS; r++) {
+      if (actualGrid[c][r] == null) return { col: c, row: r };
+    }
+  }
+  return null; // grid complete
+}
+
+/* =========================================================================
+   LIVE INPUT HANDLING
+   ========================================================================= */
+function submitActual(value) {
+  const next = findNextCell();
+  if (!next) return;
+  const { col, row } = next;
+
+  // Entering a fresh live result means the user has moved on -- any
+  // correction panel left open from editing an earlier cell should close.
+  correctingCell = null;
+
+  // A Tie does NOT occupy the slot and does NOT advance to the next cell --
+  // it's remembered as a side-bet signal against this still-open cell, and
+  // the tool keeps waiting for the real P/B result for this same row.
+  if (value === "T") {
+    const key = `${col},${row}`;
+    tieMemory[key] = (tieMemory[key] || 0) + 1;
+    history.push({
+      id: historyIdCounter++, time: new Date().toLocaleTimeString(),
+      column: col + 1, row: row + 1, strategy: "-", method: "-", prediction: "-",
+      actual: "T", status: "TIE (memory only -- slot still open)", label: "", stage: bettingStageLabel(), corrected: false,
+    });
+    renderActualGrid();
+    renderHistory();
+    renderSideBets();
+    saveState();
+    return;
+  }
+
+  actualGrid[col][row] = value;
+  lastEntered = { col, row, value };
+
+  recordActualOnlyRow(col + 1, row + 1, value);
+  recomputeAll();
+  renderActualGrid();
+  renderPredictions();
+  renderStagePanel();
+  renderHistory();
+  renderSideBets();
+  saveState();
+}
+
+document.getElementById("btnP").addEventListener("click", () => submitActual("P"));
+document.getElementById("btnB").addEventListener("click", () => submitActual("B"));
+document.getElementById("btnT").addEventListener("click", () => submitActual("T"));
+document.getElementById("btnSuper6").addEventListener("click", () => {
+  const warningEl = document.getElementById("super6Warning");
+  if (!lastEntered || lastEntered.value !== "B") {
+    warningEl.textContent = "Only mark the most recent entry as Super 6 if it was a Banker (B) win.";
+    warningEl.style.display = "block";
+    return;
+  }
+  warningEl.style.display = "none";
+  setSuper6(lastEntered.col, lastEntered.row, true);
+});
+
+/* =========================================================================
+   RECOMPUTE ENGINE -- re-derives every strategy prediction that has enough
+   ACTUAL data, using ONLY confirmed actual results (never predictions),
+   after every single live entry. Idempotent: skips strategies already
+   recorded for a given (column,row,strategy).
+   ========================================================================= */
+function already(col, row, strategy) {
+  return predictionIndex[`${col},${row},${strategy}`] != null;
+}
+
+function recomputeAll() {
+  for (let c = 0; c < COLS; c++) {
+    const colNum = c + 1;
+    const A = actualGrid[c]; // [r1,r2,r3,r4] actual (may contain null/T)
+    const P = predefinedGrid[c];
+
+    // --- ROW 2 (needs at least one full prior column, so Method 1 AND
+    //     Method 2 are both available together -- no lone-Method1 guesses
+    //     on Column 1, which would rest on a single data point) ---
+    if (c >= 1) {
+      if (A[0] != null && A[0] !== "T" && !already(colNum, 2, "Row2-Method1")) {
+        const sig = calculateRow2Method1(P[0], P[1], A[0]);
+        recordPrediction({ column: colNum, row: 2, strategy: "Row2-Method1", method: "Method 1", prediction: sig });
+      }
+      const prev2 = actualGrid[c - 1];
+      if (A[0] != null && A[0] !== "T" && prev2[0] != null && prev2[0] !== "T" && prev2[1] != null && prev2[1] !== "T"
+          && !already(colNum, 2, "Row2-Method2")) {
+        const sig = calculateRow2Method2(prev2[0], prev2[1], A[0]);
+        recordPrediction({ column: colNum, row: 2, strategy: "Row2-Method2", method: "Method 2", prediction: sig });
+      }
+      if (already(colNum, 2, "Row2-Method1") && already(colNum, 2, "Row2-Method2") && !already(colNum, 2, "Row2-Final")) {
+        const m1 = getPrediction(colNum, 2, "Row2-Method1");
+        const m2 = getPrediction(colNum, 2, "Row2-Method2");
+        if (m1 && m2) {
+          const final = calculateRow2Final(m1.prediction, m2.prediction);
+          recordPrediction({ column: colNum, row: 2, strategy: "Row2-Final", method: "Final", prediction: final, label: "" });
+        }
+      }
+    }
+
+    // --- ROW 3 (same minimum-data rule as Row 2) ---
+    if (c >= 1) {
+      if (A[0] != null && A[0] !== "T" && A[1] != null && A[1] !== "T" && !already(colNum, 3, "Row3-Method1")) {
+        const sig = calculateRow3Method1(P.slice(0, 3), [A[0], A[1]]);
+        recordPrediction({ column: colNum, row: 3, strategy: "Row3-Method1", method: "Method 1", prediction: sig });
+      }
+      const prev3 = actualGrid[c - 1];
+      if (A[1] != null && A[1] !== "T" && prev3[1] != null && prev3[1] !== "T" && prev3[2] != null && prev3[2] !== "T"
+          && !already(colNum, 3, "Row3-Method2")) {
+        const sig = calculateRow3Method2(prev3[1], prev3[2], A[1]);
+        recordPrediction({ column: colNum, row: 3, strategy: "Row3-Method2", method: "Method 2", prediction: sig });
+      }
+      if (already(colNum, 3, "Row3-Method1") && already(colNum, 3, "Row3-Method2") && !already(colNum, 3, "Row3-Final")) {
+        const m1 = getPrediction(colNum, 3, "Row3-Method1");
+        const m2 = getPrediction(colNum, 3, "Row3-Method2");
+        if (m1 && m2) {
+          const final = calculateRow3Final(m1.prediction, m2.prediction);
+          recordPrediction({ column: colNum, row: 3, strategy: "Row3-Final", method: "Final", prediction: final });
+        }
+      }
+    }
+
+    // --- ROW 4 ---
+    if (A[0] != null && A[0] !== "T" && A[1] != null && A[1] !== "T" && A[2] != null && A[2] !== "T"
+        && !already(colNum, 4, "Row4")) {
+      const sig = calculateRow4Signal(P, [A[0], A[1], A[2]]);
+      recordPrediction({ column: colNum, row: 4, strategy: "Row4", method: "-", prediction: sig });
+    }
+
+    // --- THREE-BOX (needs columns c-2, c-1 FULLY actual+decisive; targets row2 of column c) ---
+    if (c >= 2) {
+      const c0 = actualGrid[c - 2], c1 = actualGrid[c - 1];
+      const prevPairComplete = [...c0, ...c1].every(v => v != null && v !== "T");
+      if (prevPairComplete && A[0] != null && A[0] !== "T") {
+        const box1 = classifyBox([c0[0], c0[1], c1[0], c1[1]]);
+        const box2 = classifyBox([c0[1], c0[2], c1[1], c1[2]]);
+        const box3 = classifyBox([c0[2], c0[3], c1[2], c1[3]]);
+
+        if (!already(colNum, 2, "ThreeBox")) {
+          const expected = calculateThreeBoxExpected(box1, box2, box3);
+          // Per user confirmation: only SSS->Opposite and OOO->Same are real
+          // signals. Any mixed pattern is silently skipped (no prediction
+          // recorded at all) rather than shown as pending/unclear.
+          if (expected != null) {
+            const sig = solveTargetForClassification([c1[0], c1[1], A[0]], expected);
+            recordPrediction({ column: colNum, row: 2, strategy: "ThreeBox", method: "-", prediction: sig, label: "70%" });
+          }
+        }
+      }
+    }
+
+    // --- SIX-BOX (needs columns c-2, c-1 FULLY actual+decisive, plus rows1-3 of column c; targets row4) ---
+    if (c >= 2) {
+      const c0 = actualGrid[c - 2], c1 = actualGrid[c - 1];
+      const prevPairComplete = [...c0, ...c1].every(v => v != null && v !== "T");
+      if (prevPairComplete && A[0] != null && A[0] !== "T" && A[1] != null && A[1] !== "T" && A[2] != null && A[2] !== "T"
+          && !already(colNum, 4, "SixBox")) {
+        const b1 = classifyBox([c0[0], c0[1], c1[0], c1[1]]);
+        const b2 = classifyBox([c0[1], c0[2], c1[1], c1[2]]);
+        const b3 = classifyBox([c0[2], c0[3], c1[2], c1[3]]);
+        const b4 = classifyBox([c1[0], c1[1], A[0], A[1]]);
+        const b5 = classifyBox([c1[1], c1[2], A[1], A[2]]);
+        const expected = calculateSixBoxExpected([b1, b2, b3, b4, b5]);
+        const sig = solveTargetForClassification([c1[2], c1[3], A[2]], expected);
+        recordPrediction({ column: colNum, row: 4, strategy: "SixBox", method: "-", prediction: sig, label: "95%" });
+      }
+    }
+
+    // --- RESOLVE any PENDING predictions whose target cell now has an actual ---
+    for (const [rowNum, val] of [[2, A[1]], [3, A[2]], [4, A[3]]]) {
+      if (val == null) continue;
+
+      for (const strategy of ["Row2-Method1", "Row2-Method2", "Row2-Final", "ThreeBox",
+                                "Row3-Method1", "Row3-Method2", "Row3-Final", "Row4", "SixBox"]) {
+        const id = predictionIndex[`${colNum},${rowNum},${strategy}`];
+        if (id == null) continue;
+        const rec = history.find(h => h.id === id);
+        if (rec && rec.status === "PENDING") {
+          rec.actual = val;
+          rec.status = (rec.prediction === val) ? "WIN" : "FAIL";
+        }
+      }
+    }
+  }
+
+  updateBettingProgression();
+}
+
+function getPrediction(column, row, strategy) {
+  const id = predictionIndex[`${column},${row},${strategy}`];
+  return id != null ? history.find(h => h.id === id) : null;
+}
+
+// Classify a prediction record's outcome for betting purposes:
+// 'WIN' / 'LOSS' / 'PENDING' (still waiting on a live result) / null (row
+// not active or no record). A Tie can no longer land here -- it never
+// resolves a prediction, since it never occupies the row slot at all.
+function rowOutcome(rec) {
+  if (!rec) return null;
+  if (rec.status === "WIN") return "WIN";
+  if (rec.status === "FAIL") return "LOSS";
+  return "PENDING";
+}
+
+// Every strategy signal that can appear in the audit history, paired with
+// the row it targets. Used by updateBettingProgression to count wins/losses.
+const BET_STRATEGIES = [
+  ["Row2-Method1", 2], ["Row2-Method2", 2], ["Row2-Final", 2], ["ThreeBox", 2],
+  ["Row3-Method1", 3], ["Row3-Method2", 3], ["Row3-Final", 3],
+  ["Row4", 4], ["SixBox", 4],
+];
+
+function updateBettingProgression() {
+  // Find the most recently fully-resolved column (all 4 rows filled) and
+  // step the stage machine + accumulate wins/losses once per column.
+  for (let c = 0; c < COLS; c++) {
+    const colNum = c + 1;
+    if (actualGrid[c][3] == null) continue; // column not finished yet
+    if (colProgressed[colNum]) continue; // already applied this column's result
+    colProgressed[colNum] = true;
+
+    // Wins/losses count EVERY WIN/FAIL row shown in the audit history for
+    // this column -- every strategy signal individually, not just the
+    // "Final" ones. Confirmed with the user 2026-09-04: "audit history
+    // shows all results in status -- that is all should be considered."
+    for (const [strategy, rowNum] of BET_STRATEGIES) {
+      const outcome = rowOutcome(getPrediction(colNum, rowNum, strategy));
+      if (outcome === "WIN") wins++;
+      else if (outcome === "LOSS") losses++;
+    }
+
+    // Stage progression is unaffected by the above -- it still tracks only
+    // the row(s) actually active in the staged betting strategy.
+    const row2rec = getPrediction(colNum, 2, "Row2-Final") || getPrediction(colNum, 2, "ThreeBox");
+    const row3rec = getPrediction(colNum, 3, "Row3-Final");
+    const row4rec = getPrediction(colNum, 4, "Row4");
+    const activeRows = STAGE_ROWS[bettingStage];
+    const activeResults = {
+      row2: activeRows.includes(2) ? (rowOutcome(row2rec) === "WIN") : null,
+      row3: activeRows.includes(3) ? (rowOutcome(row3rec) === "WIN") : null,
+      row4: activeRows.includes(4) ? (rowOutcome(row4rec) === "WIN") : null,
+    };
+    bettingStage = updateBettingStage(bettingStage, { activeResults });
+  }
+}
+let colProgressed = {};
+
+/* =========================================================================
+   CORRECT A SINGLE ALREADY-ENTERED RESULT -- without wiping the whole
+   session via "Edit setup / restart". Only the target column onward is
+   affected: every prediction from that column forward may have used the
+   now-stale value (directly, or via Method 2 / Three-Box / Six-Box looking
+   at prior columns), so those are flagged as corrected and regenerated.
+   Earlier columns and their predictions are untouched and reproduce
+   identically. The original actual-result log line is struck through
+   (flagged corrected) and a new one is appended -- append-only, never
+   silently overwritten.
+   ========================================================================= */
+function correctCell(col, row, newValue) {
+  const oldValue = actualGrid[col][row];
+  if (oldValue == null || oldValue === newValue) { renderCorrectionPanel(); return; }
+
+  for (const h of history) {
+    if (h.column === col + 1 && h.row === row + 1 && h.strategy === "-" && h.status === "-") {
+      h.corrected = true;
+    }
+  }
+  history.push({
+    id: historyIdCounter++, time: new Date().toLocaleTimeString(),
+    column: col + 1, row: row + 1, strategy: "-", method: "-", prediction: "-",
+    actual: newValue, status: `CORRECTED (was ${oldValue})`, label: "", stage: bettingStageLabel(), corrected: false,
+  });
+
+  for (const h of history) {
+    if (h.strategy !== "-" && h.column >= col + 1 && !h.corrected) {
+      h.corrected = true;
+      delete predictionIndex[`${h.column},${h.row},${h.strategy}`];
+    }
+  }
+
+  actualGrid[col][row] = newValue;
+
+  // Super 6 only makes sense on a Banker win -- if the correction moves the
+  // result away from B, a lingering Super 6 flag would be invalid, so drop
+  // it and log why.
+  const key = `${col},${row}`;
+  if (newValue !== "B" && sideBets[key] && sideBets[key].super6) {
+    sideBets[key] = { ...sideBets[key], super6: false };
+    history.push({
+      id: historyIdCounter++, time: new Date().toLocaleTimeString(),
+      column: col + 1, row: row + 1, strategy: "-", method: "-", prediction: "-",
+      actual: newValue, status: `SUPER 6 REMOVED (result corrected to ${newValue})`, label: "", stage: bettingStageLabel(), corrected: false,
+    });
+  }
+
+  // Keep the status note's "last actual result" in sync with this correction.
+  if (lastEntered && lastEntered.col === col && lastEntered.row === row) {
+    lastEntered = { col, row, value: newValue };
+  }
+
+  // Replay betting progression from scratch -- columns before this one
+  // reproduce the exact same result, columns from here on recompute fresh.
+  bettingStage = 1; wins = 0; losses = 0; colProgressed = {};
+
+  // Keep the panel open on this same cell (now showing the corrected value)
+  // instead of closing it -- e.g. Set to B then Mark Super 6 in one go,
+  // no need to re-click the cell to reopen it.
+  recomputeAll();
+  renderActualGrid();
+  renderPredictions();
+  renderStagePanel();
+  renderHistory();
+  renderSideBets();
+  saveState();
+}
+
+// Tie count and Super 6 are side-bet-only signals -- neither feeds any
+// strategy calculation, so adjusting them never touches predictions,
+// betting stage, wins, or losses. Each change is still logged as its own
+// append-only audit line.
+function adjustTie(col, row, delta) {
+  const key = `${col},${row}`;
+  const current = tieMemory[key] || 0;
+  const next = Math.max(0, current + delta);
+  if (next === current) return;
+  if (next === 0) delete tieMemory[key]; else tieMemory[key] = next;
+  history.push({
+    id: historyIdCounter++, time: new Date().toLocaleTimeString(),
+    column: col + 1, row: row + 1, strategy: "-", method: "-", prediction: "-",
+    actual: "T", status: `TIE COUNT CORRECTED (now ${next})`, label: "", stage: bettingStageLabel(), corrected: false,
+  });
+  renderActualGrid();
+  renderHistory();
+  renderSideBets();
+  saveState();
+}
+
+function setSuper6(col, row, value) {
+  const key = `${col},${row}`;
+  const currentlyOn = !!(sideBets[key] && sideBets[key].super6);
+  if (currentlyOn === value) return;
+  sideBets[key] = { ...(sideBets[key] || {}), super6: value };
+  history.push({
+    id: historyIdCounter++, time: new Date().toLocaleTimeString(),
+    column: col + 1, row: row + 1, strategy: "-", method: "-", prediction: "-",
+    actual: actualGrid[col][row], status: value ? "SUPER 6 MARKED" : "SUPER 6 REMOVED", label: "", stage: bettingStageLabel(), corrected: false,
+  });
+  renderActualGrid();
+  renderHistory();
+  renderSideBets();
+  saveState();
+}
+
+function renderCorrectionPanel() {
+  const el = document.getElementById("correctionPanel");
+  if (!correctingCell) { el.style.display = "none"; el.innerHTML = ""; return; }
+  const { col, row } = correctingCell;
+  const current = actualGrid[col][row];
+  const key = `${col},${row}`;
+  const tieCount = tieMemory[key] || 0;
+  const isSuper6 = !!(sideBets[key] && sideBets[key].super6);
+  el.style.display = "block";
+  el.innerHTML = "";
+  const mk = (text, fn) => { const b = document.createElement("button"); b.className = "small"; b.textContent = text; b.addEventListener("click", fn); return b; };
+
+  const title = document.createElement("div");
+  title.innerHTML = `<strong>Correcting C${col + 1} R${row + 1}</strong> (currently ${current})`;
+  el.appendChild(title);
+
+  const resultRow = document.createElement("div");
+  resultRow.style.marginTop = "0.3rem";
+  resultRow.appendChild(mk("Set to P", () => correctCell(col, row, "P")));
+  resultRow.appendChild(mk("Set to B", () => correctCell(col, row, "B")));
+  resultRow.appendChild(mk("Cancel", () => { correctingCell = null; renderActualGrid(); }));
+  el.appendChild(resultRow);
+
+  const tieRow = document.createElement("div");
+  tieRow.style.marginTop = "0.5rem";
+  tieRow.innerHTML = `Ties recorded here: <strong>${tieCount}</strong> &nbsp;`;
+  const minusTieBtn = mk("-1 Tie", () => adjustTie(col, row, -1));
+  minusTieBtn.disabled = tieCount === 0;
+  tieRow.appendChild(minusTieBtn);
+  tieRow.appendChild(mk("+1 Tie", () => adjustTie(col, row, 1)));
+  el.appendChild(tieRow);
+
+  if (current === "B") {
+    const s6Row = document.createElement("div");
+    s6Row.style.marginTop = "0.4rem";
+    s6Row.innerHTML = `Super 6: <strong>${isSuper6 ? "Yes" : "No"}</strong> &nbsp;`;
+    s6Row.appendChild(mk(isSuper6 ? "Remove Super 6" : "Mark Super 6", () => setSuper6(col, row, !isSuper6)));
+    el.appendChild(s6Row);
+  }
+}
+
+/* =========================================================================
+   RENDER: ACTUAL GRID
+   ========================================================================= */
+function renderActualGrid() {
+  const el = document.getElementById("actualGridEl");
+  el.innerHTML = "";
+  el.appendChild(document.createElement("div"));
+  for (let c = 0; c < COLS; c++) {
+    const h = document.createElement("div"); h.className = "hdr"; h.textContent = "C" + (c + 1);
+    el.appendChild(h);
+  }
+  const next = findNextCell();
+  for (let r = 0; r < ROWS; r++) {
+    const rl = document.createElement("div"); rl.className = "rowlabel"; rl.textContent = "R" + (r + 1);
+    el.appendChild(rl);
+    for (let c = 0; c < COLS; c++) {
+      const val = actualGrid[c][r];
+      const cell = document.createElement("div");
+      let cls = "actual-cell " + (val ?? "empty");
+      if (next && next.col === c && next.row === r) cls += " next";
+      if (correctingCell && correctingCell.col === c && correctingCell.row === r) cls += " correcting";
+      cell.className = cls;
+      let label = val ?? "-";
+      const key = `${c},${r}`;
+      const sb = sideBets[key];
+      if (sb && sb.super6) label += " (S6)";
+      if (tieMemory[key]) label += ` (T x${tieMemory[key]})`;
+      cell.textContent = label;
+      if (val != null) {
+        cell.title = "Click to correct this result";
+        cell.addEventListener("click", () => {
+          correctingCell = { col: c, row: r };
+          renderActualGrid();
+        });
+      }
+      el.appendChild(cell);
+    }
+  }
+  renderCorrectionPanel();
+
+  const statusNote = document.getElementById("statusNote");
+  const nextTies = next ? (tieMemory[`${next.col},${next.row}`] || 0) : 0;
+  const tieLine = nextTies ? `<br><strong>TIE(S) RECORDED HERE:</strong> ${nextTies} -- still waiting for the real P/B result for this slot.` : "";
+  if (lastEntered) {
+    const nextLabel = next ? `C${next.col + 1} R${next.row + 1}` : "Grid complete";
+    let extra = "";
+    // Clarity note per user feedback: make it obvious WHY a box prediction
+    // just appeared, rather than looking like the system responded late.
+    if (lastEntered.row === 0) {
+      const tb = getPrediction(lastEntered.col + 1, 2, "ThreeBox");
+      if (tb) extra = `<br>-> C${lastEntered.col + 1} R1 received: Three-Box prediction now available for C${lastEntered.col + 1} R2.`;
+    } else if (lastEntered.row === 2) {
+      const sb = getPrediction(lastEntered.col + 1, 4, "SixBox");
+      if (sb) extra = `<br>-> C${lastEntered.col + 1} R3 received: Six-Box prediction now available for C${lastEntered.col + 1} R4.`;
+    }
+    statusNote.innerHTML = `<strong>LAST ACTUAL RESULT:</strong> C${lastEntered.col + 1} R${lastEntered.row + 1} = ${lastEntered.value}<br><strong>NEXT REQUIRED LIVE RESULT:</strong> ${nextLabel}${tieLine}${extra}`;
+  } else {
+    statusNote.innerHTML = `<strong>NEXT REQUIRED LIVE RESULT:</strong> C1 R1${tieLine}`;
+  }
+
+  document.getElementById("btnP").disabled = !next;
+  document.getElementById("btnB").disabled = !next;
+  document.getElementById("btnT").disabled = !next;
+}
+
+/* =========================================================================
+   RENDER: PREDICTIONS + AGREEMENT/CONFLICT
+   ========================================================================= */
+function renderPredictions() {
+  const container = document.getElementById("predCards");
+  const detail = document.getElementById("detailCards");
+  const detailBtn = document.getElementById("toggleDetailBtn");
+  container.innerHTML = "";
+  detail.innerHTML = "";
+  const next = findNextCell();
+  const col = next ? next.col + 1 : COLS;
+
+  const strategies = [
+    ["Row2-Method1", "Row 2 -- Method 1"], ["Row2-Method2", "Row 2 -- Method 2"], ["Row2-Final", "Row 2 -- Final"],
+    ["ThreeBox", "Three-Box (70%)"],
+    ["Row3-Method1", "Row 3 -- Method 1"], ["Row3-Method2", "Row 3 -- Method 2"], ["Row3-Final", "Row 3 -- Final"],
+    ["Row4", "Row 4 signal"], ["SixBox", "Six-Box (95%)"],
+  ];
+  let anyPending = false, anyResolved = false;
+  for (const [key, title] of strategies) {
+    // show predictions for the current target column, any row
+    for (let r = 1; r <= 4; r++) {
+      const rec = getPrediction(col, r, key);
+      if (!rec) continue;
+      const isPending = rec.status === "PENDING";
+      const status = rec.status === "WIN" ? "win" : rec.status === "FAIL" ? "loss" : "pending";
+      const card = document.createElement("div");
+      card.className = "pred-card " + (status === "win" ? "win" : status === "loss" ? "loss" : "pending");
+      card.innerHTML = `<div class="title">${title} -- C${col} R${r}</div>` +
+        `<div class="signal">${rec.prediction}</div>` +
+        (rec.label ? `<div class="label">Label: ${rec.label}</div>` : "") +
+        `<div class="status">${rec.status}</div>`;
+      if (isPending) { anyPending = true; container.appendChild(card); }
+      else { anyResolved = true; detail.appendChild(card); }
+    }
+  }
+  if (!anyPending) {
+    container.innerHTML = `<div class="subtitle">${anyResolved ? "No pending predictions right now -- check details below, or wait for the next result." : "No predictions available yet -- enter more live results."}</div>`;
+  }
+  detailBtn.style.display = anyResolved ? "" : "none";
+  if (!anyResolved) detail.style.display = "none";
+
+  renderAgreementBlock(col);
+}
+
+document.getElementById("toggleDetailBtn").addEventListener("click", () => {
+  const wrap = document.getElementById("detailCards");
+  const btn = document.getElementById("toggleDetailBtn");
+  const show = wrap.style.display === "none";
+  wrap.style.display = show ? "flex" : "none";
+  btn.textContent = show ? "Hide latest result details" : "Show latest result details";
+});
+
+// Per user confirmation: 90% agreement compares the RAW applicable
+// strategies for a target row, not the already-resolved Final value.
+// Row 2 group = {Method 1, Method 2, Three-Box}. Row 4 group = {Row 4, Six-Box}.
+// Only strategies currently AVAILABLE (recorded) for this column count --
+// e.g. Method 2 doesn't exist for column 1, Three-Box doesn't exist before
+// column 3. A single available strategy has nothing to agree/conflict
+// with, so no banner is shown until at least 2 are available.
+function renderAgreementBlock(col) {
+  const banner = document.getElementById("agreeBanner");
+  banner.innerHTML = "";
+
+  if (findNextCell() === null) {
+    banner.innerHTML = `<div class="subtitle">Shoe complete -- no next bet to predict.</div>`;
+    return;
+  }
+
+  const A = actualGrid[col - 1];
+  const groups = [
+    { rowNum: 2, label: "ROW 2", parts: [
+        ["Main -- Method 1", getPrediction(col, 2, "Row2-Method1")],
+        ["Main -- Method 2", getPrediction(col, 2, "Row2-Method2")],
+        ["Three-Box (70%)", getPrediction(col, 2, "ThreeBox")],
+      ] },
+    { rowNum: 4, label: "ROW 4", parts: [
+        ["Row 4 signal", getPrediction(col, 4, "Row4")],
+        ["Six-Box (95%)", getPrediction(col, 4, "SixBox")],
+      ] },
+  ];
+
+  for (const group of groups) {
+    // Skip a row's banner once its actual result is already in for this
+    // column -- it's history at that point, not an upcoming decision.
+    if (A[group.rowNum - 1] != null) continue;
+
+    const available = group.parts.filter(([, rec]) => rec != null);
+    if (available.length < 2) continue; // nothing to compare yet
+
+    const block = document.createElement("div");
+    const vals = available.map(([, rec]) => rec.prediction);
+    const allAgree = vals.every(v => v === vals[0]);
+    block.className = "agree-banner " + (allAgree ? "agree" : "conflict");
+
+    const lines = group.parts.map(([label, rec]) =>
+      `${label}: ${rec ? rec.prediction : "Pending"}`
+    ).join("<br>");
+    const verdict = allAgree
+      ? `ALL STRATEGIES AGREE -- ${vals[0]} -- 90%`
+      : `CONFLICT -- WAIT`;
+
+    block.innerHTML = `<div style="font-weight:400; font-size:0.82rem; margin-bottom:0.4rem;">${group.label}:<br>${lines}</div><div>${verdict}</div>`;
+    banner.appendChild(block);
+  }
+}
+
+/* =========================================================================
+   RENDER: SIDE BETS
+   ========================================================================= */
+// Per-row-position history: how many times a Tie / Super 6 has actually
+// happened at this row slot (Row 1..4) across all completed columns so far.
+// This is a plain frequency count of what actually happened -- not a
+// probability claim -- used only to flag "this row has a side-bet history"
+// when that same row slot comes up again in the next column.
+function rowSideBetStats(row) {
+  let tieCount = 0, super6Count = 0, colsWithData = 0;
+  for (let c = 0; c < COLS; c++) {
+    if (actualGrid[c][row] != null) colsWithData++;
+    tieCount += tieMemory[`${c},${row}`] || 0;
+    const sb = sideBets[`${c},${row}`];
+    if (sb && sb.super6) super6Count++;
+  }
+  return { tieCount, super6Count, colsWithData };
+}
+
+function renderSideBets() {
+  const el = document.getElementById("sideBetContent");
+  const allTies = Object.entries(tieMemory).filter(([, count]) => count > 0).map(([key, count]) => {
+    const [c, r] = key.split(",").map(Number);
+    return count > 1 ? `C${c + 1}R${r + 1} (x${count})` : `C${c + 1}R${r + 1}`;
+  });
+  const super6s = Object.entries(sideBets).filter(([, v]) => v.super6).map(([k]) => {
+    const [c, r] = k.split(",").map(Number); return `C${c + 1}R${r + 1}`;
+  });
+  const parts = [];
+  if (allTies.length) parts.push(`Ties recorded: ${allTies.join(", ")}`);
+  if (super6s.length) parts.push(`Super 6 recorded: ${super6s.join(", ")}`);
+
+  const next = findNextCell();
+  let watchLine = "";
+  if (next) {
+    const { tieCount, super6Count, colsWithData } = rowSideBetStats(next.row);
+    const flags = [];
+    if (tieCount > 0) flags.push(`Tie happened ${tieCount} of ${colsWithData} time(s) so far at Row ${next.row + 1} -- Tie side-bet watch`);
+    if (super6Count > 0) flags.push(`Super 6 happened ${super6Count} of ${colsWithData} time(s) so far at Row ${next.row + 1} -- Super 6 side-bet watch`);
+    if (flags.length) watchLine = `<div style="margin-top:0.4rem; font-weight:600;">Next up -- C${next.col + 1} R${next.row + 1}: ${flags.join(" | ")}</div>`;
+  }
+
+  el.innerHTML = (parts.length ? parts.join(" | ") : "No side-bet signal right now.") + watchLine;
+}
+
+/* =========================================================================
+   RENDER: BETTING STAGE
+   ========================================================================= */
+function renderStagePanel() {
+  const gridComplete = findNextCell() === null;
+  document.getElementById("stageValue").textContent = bettingStage === 4 ? "4 (HOLD)" : bettingStage;
+  document.getElementById("activeRowsValue").textContent = gridComplete
+    ? "-- (shoe complete)"
+    : (bettingStage === 4 ? "none" : STAGE_ROWS[bettingStage].map(r => "R" + r).join(" + "));
+  document.getElementById("winsValue").textContent = wins;
+  document.getElementById("lossesValue").textContent = losses;
+  const total = wins + losses;
+  document.getElementById("winRateValue").textContent = total ? `${Math.round(100 * wins / total)}%` : "-";
+  renderActiveBet();
+  renderLabelBreakdown();
+}
+
+// Win/loss broken out by confidence label (70% Three-Box, 95% Six-Box, and
+// 90% "all currently-available raw strategies agreed" -- re-derived from
+// history per column using the same grouping as the live agreement banner,
+// but only counting pairs that both actually resolved WIN/FAIL).
+function computeLabelBreakdown() {
+  const buckets = { "70%": { wins: 0, losses: 0 }, "90%": { wins: 0, losses: 0 }, "95%": { wins: 0, losses: 0 } };
+  const resolved = rec => rec && (rec.status === "WIN" || rec.status === "FAIL");
+  for (let c = 1; c <= COLS; c++) {
+    const tb = getPrediction(c, 2, "ThreeBox");
+    if (resolved(tb)) buckets["70%"][tb.status === "WIN" ? "wins" : "losses"]++;
+
+    const sb = getPrediction(c, 4, "SixBox");
+    if (resolved(sb)) buckets["95%"][sb.status === "WIN" ? "wins" : "losses"]++;
+
+    const groups = [
+      [getPrediction(c, 2, "Row2-Method1"), getPrediction(c, 2, "Row2-Method2"), getPrediction(c, 2, "ThreeBox")],
+      [getPrediction(c, 4, "Row4"), getPrediction(c, 4, "SixBox")],
+    ];
+    for (const group of groups) {
+      const avail = group.filter(resolved);
+      if (avail.length < 2) continue;
+      const allAgree = avail.every(r => r.prediction === avail[0].prediction);
+      if (!allAgree) continue;
+      buckets["90%"][avail[0].status === "WIN" ? "wins" : "losses"]++;
+    }
+  }
+  return buckets;
+}
+
+function renderLabelBreakdown() {
+  const body = document.getElementById("breakdownBody");
+  if (!body) return;
+  const buckets = computeLabelBreakdown();
+  body.innerHTML = "";
+  for (const label of ["70%", "90%", "95%"]) {
+    const { wins: w, losses: l } = buckets[label];
+    const t = w + l;
+    const rate = t ? `${Math.round(100 * w / t)}%` : "-";
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${label}</td><td>${w}</td><td>${l}</td><td>${rate}</td>`;
+    body.appendChild(tr);
+  }
+}
+
+document.getElementById("toggleBreakdownBtn").addEventListener("click", () => {
+  const wrap = document.getElementById("breakdownWrap");
+  const btn = document.getElementById("toggleBreakdownBtn");
+  const show = wrap.style.display === "none";
+  wrap.style.display = show ? "block" : "none";
+  btn.textContent = show ? "Hide breakdown by confidence label" : "Show breakdown by confidence label";
+});
+
+// Explicit "what am I actually betting right now" display, so the active
+// row's prediction source is never silently chosen in the background.
+// Row 2's actual bet uses Row2-Final if it exists, otherwise Three-Box
+// (this fallback is the SAME logic already used for stage progression --
+// now it's shown, not hidden).
+function renderActiveBet() {
+  const el = document.getElementById("activeBetNote");
+  const next = findNextCell();
+  if (!next) {
+    const total = wins + losses;
+    const rate = total ? `${Math.round(100 * wins / total)}%` : "-";
+    el.innerHTML = `SHOE COMPLETE -- Final record: ${wins}W-${losses}L (${rate})`;
+    return;
+  }
+  if (bettingStage === 4) {
+    el.innerHTML = "HOLD -- no active bet. Reset to Stage 1 when ready to resume.";
+    return;
+  }
+  const col = next.col + 1;
+  const activeRows = STAGE_ROWS[bettingStage];
+  const lines = [];
+
+  if (activeRows.includes(2)) {
+    const final = getPrediction(col, 2, "Row2-Final");
+    const box = getPrediction(col, 2, "ThreeBox");
+    const used = final || box;
+    const source = final ? "Row 2 Final" : (box ? "Three-Box" : null);
+    lines.push(`R2 -> ${used ? `${used.prediction} (${source})` : "not available yet"}`);
+  }
+  if (activeRows.includes(3)) {
+    const rec = getPrediction(col, 3, "Row3-Final");
+    lines.push(`R3 -> ${rec ? `${rec.prediction} (Row 3 Final)` : "not available yet"}`);
+  }
+  if (activeRows.includes(4)) {
+    const rec = getPrediction(col, 4, "Row4");
+    lines.push(`R4 -> ${rec ? `${rec.prediction} (Row 4)` : "not available yet"}`);
+  }
+
+  el.innerHTML = `ACTIVE BET -- Stage ${bettingStage}, Column ${col}:<br>` + lines.join("<br>");
+}
+
+document.getElementById("resetStageBtn").addEventListener("click", () => {
+  bettingStage = 1; wins = 0; losses = 0; colProgressed = {};
+  renderStagePanel();
+  saveState();
+});
+
+/* =========================================================================
+   RENDER: HISTORY
+   ========================================================================= */
+function renderHistory() {
+  const body = document.getElementById("historyBody");
+  body.innerHTML = "";
+  for (const h of history) {
+    const tr = document.createElement("tr");
+    if (h.corrected) tr.className = "corrected";
+    const statusCls = h.status === "WIN" ? "win" : h.status === "FAIL" ? "loss" : (h.status === "PENDING" || h.status.startsWith("TIE") || h.status.startsWith("CORRECTED") || h.status.startsWith("SUPER 6")) ? "pending" : "";
+    tr.innerHTML = `<td>${h.time}</td><td>C${h.column}</td><td>R${h.row}</td><td>${h.strategy}</td><td>${h.method}</td>` +
+      `<td>${h.prediction}</td><td>${h.actual ?? "-"}</td><td class="${statusCls}">${h.status}</td>` +
+      `<td>${h.label || "-"}</td><td>${h.stage}</td>`;
+    body.appendChild(tr);
+  }
+  body.parentElement.parentElement.scrollTop = body.parentElement.parentElement.scrollHeight;
+}
+
+/* =========================================================================
+   INIT
+   ========================================================================= */
+document.getElementById("assumptionsNote").innerHTML =
+  "<strong>Confirmed with the user:</strong> " +
+  "Row 3's disagreement tie-break uses the same rule as Row 2 (opposite of Method 1). " +
+  "Three-Box only produces a signal for all-Same (SSS) or all-Opposite (OOO) patterns -- any mixed pattern is silently skipped (no card shown) rather than guessed. " +
+  "The 90%/conflict check compares ALL currently-available raw strategies per target row -- Method 1 + Method 2 + Three-Box for Row 2, Row 4 + Six-Box for Row 4 -- as two independent groups, never all mixed together. Only strategies already available for that column are compared (e.g. Method 2 doesn't exist for column 1). " +
+  "<br><strong>Implementation defaults (not flagged as concerns):</strong> " +
+  "a Tie does NOT occupy a row slot and does NOT advance the grid -- it is remembered against the still-open cell, and the tool keeps waiting for the real P/B result for that same slot; Super 6 is recorded as a side-bet flag on a Banker (B) win. " +
+  "<br><strong>Side-bet suggestion rule (confirmed with the user):</strong> for the row position about to be entered next, the tool counts how many times a Tie, and separately a Super 6, has actually happened at that same row slot (Row 1-4) in the columns already played. If either count is above zero it is shown as a plain frequency (e.g. \"Tie happened 2 of 5 times so far at Row 2\") -- a factual history flag for the side-bet decision, not a computed probability. " +
+  "<br><strong>Minimum data rule (confirmed with the user):</strong> Row 2 and Row 3 never predict on Column 1 -- Method 2 needs a full prior column, so Row 2/Row 3 only start once Column 1 is complete (Column 2 onward), matching the same &quot;wait for enough data&quot; principle Row 4 already follows on its own column. " +
+  "<br><strong>Row 4 rule (updated, confirmed with the user):</strong> count how many of R1-R3 differ from the predefined pattern. An EVEN count (0 or 2) flips the predefined R4 value; an ODD count (1 or 3) keeps it as-is. Equivalent to: across all 4 rows, the total number that differ from predefined always ends up odd (1 or 3), never even.";
+
+document.getElementById("toggleAssumptionsBtn").addEventListener("click", () => {
+  const note = document.getElementById("assumptionsNote");
+  const btn = document.getElementById("toggleAssumptionsBtn");
+  const show = note.style.display === "none";
+  note.style.display = show ? "block" : "none";
+  btn.textContent = show ? "Hide rules & assumptions" : "Show rules & assumptions";
+});
+
+/* =========================================================================
+   SAVE / RESUME -- plain synchronous browser localStorage. No Claude.ai
+   capability, no network call, no rate limit: every state-changing action
+   writes the whole state to this browser's localStorage immediately, and
+   the page restores from it on load. State is per-browser, not synced
+   across devices -- that's the tradeoff for having zero external
+   dependency.
+   ========================================================================= */
+const LOCAL_STORAGE_KEY = "baccaratTrackerState";
+let lastSaveStatus = "No saved data in this browser yet.";
+
+function renderSaveStatus() {
+  const el = document.getElementById("saveStatusNote");
+  if (el) el.textContent = lastSaveStatus;
+}
+
+function serializeState() {
+  return {
+    predefinedGrid, setupLocked, actualGrid, sideBets, tieMemory,
+    history, predictionIndex, bettingStage, wins, losses,
+    lastEntered, historyIdCounter, colProgressed,
+  };
+}
+
+function restoreState(s) {
+  predefinedGrid = s.predefinedGrid; setupLocked = !!s.setupLocked;
+  actualGrid = s.actualGrid; sideBets = s.sideBets || {}; tieMemory = s.tieMemory || {};
+  history = s.history || []; predictionIndex = s.predictionIndex || {};
+  bettingStage = s.bettingStage || 1; wins = s.wins || 0; losses = s.losses || 0;
+  lastEntered = s.lastEntered || null; historyIdCounter = s.historyIdCounter || 1;
+  colProgressed = s.colProgressed || {};
+}
+
+function saveState() {
+  try {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(serializeState()));
+    lastSaveStatus = `Saved to browser storage at ${new Date().toLocaleTimeString()}.`;
+  } catch (e) {
+    lastSaveStatus = `Browser storage save failed: ${e && e.message ? e.message : e}`;
+  }
+  renderSaveStatus();
+}
+
+function loadState() {
+  let saved = null;
+  try {
+    const json = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (json != null) saved = JSON.parse(json);
+  } catch (e) {
+    lastSaveStatus = `Browser storage load failed: ${e && e.message ? e.message : e}`;
+    renderSaveStatus();
+    return;
+  }
+  if (saved) {
+    restoreState(saved);
+    lastSaveStatus = "Restored from browser storage.";
+    renderSaveStatus();
+  }
+}
+
+document.getElementById("viewSavedBtn").addEventListener("click", () => {
+  const out = document.getElementById("viewSavedOutput");
+  out.style.display = "block";
+  try {
+    const json = localStorage.getItem(LOCAL_STORAGE_KEY);
+    out.textContent = json != null
+      ? JSON.stringify(JSON.parse(json), null, 2)
+      : "No saved data in this browser yet.";
+  } catch (e) {
+    out.textContent = `Browser storage read failed: ${e && e.message ? e.message : e}`;
+  }
+});
+
+(function initApp() {
+  loadState();
+
+  renderPredefinedGrid();
+  if (setupLocked) {
+    ["topBar", "livePanel", "predPanel", "sideBetPanel", "stagePanel", "historyPanel"].forEach(id => {
+      document.getElementById(id).style.display = "flex";
+    });
+    renderActualGrid();
+    renderPredictions();
+    renderStagePanel();
+    renderHistory();
+  }
+})();
+</script>
