@@ -629,6 +629,30 @@ function renderPredefinedGrid() {
 document.getElementById("randomizeBtn").addEventListener("click", () => {
   predefinedGrid = Array.from({ length: COLS }, () => shuffledBalancedColumn());
   renderPredefinedGrid();
+  // Randomize is still clickable mid-shoe (not just pre-lock). Every
+  // strategy formula reads predefinedGrid directly, but recomputeAll()
+  // skips any (column,row,strategy) already recorded in predictionIndex
+  // -- so without this, changing the predefined pattern mid-shoe left the
+  // "3-4. Current predictions" panel showing stale predictions computed
+  // from the OLD pattern. Only PENDING (not yet resolved) predictions are
+  // invalidated here -- an already-settled WIN/FAIL is a real historical
+  // bet outcome and must not be rewritten just because the pattern
+  // changed afterward.
+  if (setupLocked) {
+    for (const h of history) {
+      if (h.strategy !== "-" && h.status === "PENDING" && !h.corrected) {
+        h.corrected = true;
+        delete predictionIndex[`${h.column},${h.row},${h.strategy}`];
+      }
+    }
+    recomputeAll();
+    renderActualGrid();
+    renderPredictions();
+    renderStagePanel();
+    renderHistory();
+    renderSideBets();
+    saveState();
+  }
 });
 
 document.getElementById("lockBtn").addEventListener("click", () => {
@@ -1002,6 +1026,63 @@ function correctCell(col, row, newValue) {
   saveState();
 }
 
+// DELETE A SINGLE ALREADY-ENTERED RESULT -- clears the cell back to empty
+// (rather than changing it to the other value like correctCell), so it
+// becomes the "next required" cell again and can be re-entered from
+// scratch. Same cascading invalidation as correctCell: every prediction
+// recorded for this column onward gets flagged corrected and dropped,
+// since those may have depended on the now-removed value.
+function deleteCell(col, row) {
+  const oldValue = actualGrid[col][row];
+  if (oldValue == null) { renderCorrectionPanel(); return; }
+
+  for (const h of history) {
+    if (h.column === col + 1 && h.row === row + 1 && h.strategy === "-" && h.status === "-") {
+      h.corrected = true;
+    }
+  }
+  history.push({
+    id: historyIdCounter++, time: new Date().toLocaleTimeString(),
+    column: col + 1, row: row + 1, strategy: "-", method: "-", prediction: "-",
+    actual: null, status: `DELETED (was ${oldValue})`, label: "", stage: bettingStageLabel(), corrected: false,
+  });
+
+  for (const h of history) {
+    if (h.strategy !== "-" && h.column >= col + 1 && !h.corrected) {
+      h.corrected = true;
+      delete predictionIndex[`${h.column},${h.row},${h.strategy}`];
+    }
+  }
+
+  actualGrid[col][row] = null;
+
+  // Super 6 doesn't make sense on a now-empty cell.
+  const key = `${col},${row}`;
+  if (sideBets[key] && sideBets[key].super6) {
+    sideBets[key] = { ...sideBets[key], super6: false };
+  }
+
+  // The deleted cell is no longer "the last result" -- clear it rather
+  // than pointing at a now-empty slot.
+  if (lastEntered && lastEntered.col === col && lastEntered.row === row) {
+    lastEntered = null;
+  }
+
+  // Nothing left to correct on an empty cell -- close the panel.
+  correctingCell = null;
+
+  // Replay betting progression from scratch, same as correctCell.
+  bettingStage = 1; wins = 0; losses = 0; colProgressed = {};
+
+  recomputeAll();
+  renderActualGrid();
+  renderPredictions();
+  renderStagePanel();
+  renderHistory();
+  renderSideBets();
+  saveState();
+}
+
 // Tie count and Super 6 are side-bet-only signals -- neither feeds any
 // strategy calculation, so adjusting them never touches predictions,
 // betting stage, wins, or losses. Each change is still logged as its own
@@ -1059,6 +1140,7 @@ function renderCorrectionPanel() {
   resultRow.style.marginTop = "0.3rem";
   resultRow.appendChild(mk("Set to P", () => correctCell(col, row, "P")));
   resultRow.appendChild(mk("Set to B", () => correctCell(col, row, "B")));
+  resultRow.appendChild(mk("Delete", () => deleteCell(col, row)));
   resultRow.appendChild(mk("Cancel", () => { correctingCell = null; renderActualGrid(); }));
   el.appendChild(resultRow);
 
