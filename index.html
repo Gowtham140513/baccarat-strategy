@@ -138,9 +138,27 @@ tr.corrected td { opacity: 0.55; text-decoration: line-through; }
 .badge.win { background: var(--win-fill); color: var(--win); }
 .badge.fail { background: var(--loss-fill); color: var(--loss); }
 .badge.pending { background: var(--pending-fill); color: var(--pending); }
+
+.pw-gate {
+  position: fixed; inset: 0; z-index: 9999; background: var(--bg);
+  display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 0.9rem;
+}
+.pw-gate input {
+  font-family: var(--mono); font-size: 1rem; padding: 0.6rem 0.8rem;
+  border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text);
+  width: 220px;
+}
+.pw-gate .pw-error { color: var(--loss); font-size: 0.8rem; min-height: 1.2em; }
 </style>
 
-<div class="page">
+<div class="pw-gate" id="pwGate">
+  <div style="font-family:var(--serif); font-size:1.1rem; font-weight:600;">Enter password</div>
+  <input type="password" id="pwInput" autocomplete="off" />
+  <button id="pwSubmit" class="primary">Unlock</button>
+  <div class="pw-error" id="pwError"></div>
+</div>
+
+<div class="page" id="pageContent" style="display:none;">
   <div class="row between sticky-topbar" id="topBar" style="display:none;">
     <span class="subtitle" style="margin:0;">Baccarat Live Strategy Tracker (LOCAL)</span>
     <button id="editSetupBtn" class="small">Edit setup / restart</button>
@@ -239,6 +257,116 @@ tr.corrected td { opacity: 0.55; text-decoration: line-through; }
 </div>
 
 <script>
+/* =========================================================================
+   PAGE-LEVEL PASSWORD GATE -- a light deterrent, not real security: the
+   page content is hidden until the entered password's SHA-256 hash
+   matches CORRECT_HASH (so the plain password never appears in the page
+   source), but everything is still delivered to the browser regardless --
+   anyone with devtools/scripting knowledge could bypass this. Confirmed
+   acceptable to the user as a "raise the bar above casual viewing" gate,
+   not a substitute for real access control (that would need a private
+   repo + login, or a real server-enforced auth layer).
+   ========================================================================= */
+(function () {
+  const CORRECT_HASH = "3b29c6287b2dffae86c4e9989ce99f27d81fa423c951850c36cc3c7fa5b361d9";
+  const SESSION_KEY = "pwGateUnlocked";
+
+  // Pure-JS SHA-256 (no Web Crypto dependency) -- crypto.subtle requires a
+  // secure context (https/localhost) and is unavailable on plain file://
+  // pages in some browsers, which this gate must work on. Verified against
+  // Node's crypto.createHash('sha256') for correctness.
+  function sha256Hex(str) {
+    function rightRotate(value, amount) { return (value >>> amount) | (value << (32 - amount)); }
+    const mathPow = Math.pow;
+    const maxWord = mathPow(2, 32);
+    let result = "";
+    let words = [];
+    const asciiBitLength = str.length * 8;
+    str = unescape(encodeURIComponent(str));
+    let hash = sha256Hex.h = sha256Hex.h || [];
+    let k = sha256Hex.k = sha256Hex.k || [];
+    let primeCounter = k.length;
+    const isComposite = {};
+    for (let candidate = 2; primeCounter < 64; candidate++) {
+      if (!isComposite[candidate]) {
+        for (let i = 0; i < 313; i += candidate) isComposite[i] = candidate;
+        hash[primeCounter] = (mathPow(candidate, 0.5) * maxWord) | 0;
+        k[primeCounter++] = (mathPow(candidate, 1 / 3) * maxWord) | 0;
+      }
+    }
+    str += "\x80";
+    while (str.length % 64 - 56) str += "\x00";
+    for (let i = 0; i < str.length; i++) {
+      const j = str.charCodeAt(i);
+      if (j >> 8) return;
+      words[i >> 2] |= j << ((3 - i) % 4) * 8;
+    }
+    words[words.length] = ((asciiBitLength / maxWord) | 0);
+    words[words.length] = (asciiBitLength);
+    for (let j = 0; j < words.length;) {
+      const w = words.slice(j, j += 16);
+      const oldHash = hash;
+      hash = hash.slice(0, 8);
+      for (let i = 0; i < 64; i++) {
+        const w15 = w[i - 15], w2 = w[i - 2];
+        const a = hash[0], e = hash[4];
+        const temp1 = hash[7]
+          + (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25))
+          + ((e & hash[5]) ^ ((~e) & hash[6]))
+          + k[i]
+          + (w[i] = (i < 16) ? w[i] : (
+              w[i - 16]
+              + (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3))
+              + w[i - 7]
+              + (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10))
+            ) | 0
+          );
+        const temp2 = (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22))
+          + ((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2]));
+        hash = [(temp1 + temp2) | 0].concat(hash);
+        hash[4] = (hash[4] + temp1) | 0;
+      }
+      for (let i = 0; i < 8; i++) hash[i] = (hash[i] + oldHash[i]) | 0;
+    }
+    for (let i = 0; i < 8; i++) {
+      for (let j = 3; j + 1; j--) {
+        const b = (hash[i] >> (j * 8)) & 255;
+        result += ((b < 16) ? "0" : "") + b.toString(16);
+      }
+    }
+    return result;
+  }
+
+  function unlock() {
+    document.getElementById("pwGate").style.display = "none";
+    document.getElementById("pageContent").style.display = "";
+  }
+
+  // sessionStorage can throw (private-browsing modes, sandboxed previews,
+  // storage-disabled contexts) -- guard it so a Storage failure never
+  // breaks the gate itself; worst case, re-enter the password each visit.
+  try {
+    if (sessionStorage.getItem(SESSION_KEY) === "1") unlock();
+  } catch (e) { /* no-op -- fall through to requiring the password */ }
+
+  const input = document.getElementById("pwInput");
+  const submit = document.getElementById("pwSubmit");
+  const errorEl = document.getElementById("pwError");
+
+  function tryUnlock() {
+    if (sha256Hex(input.value) === CORRECT_HASH) {
+      try { sessionStorage.setItem(SESSION_KEY, "1"); } catch (e) { /* no-op */ }
+      unlock();
+    } else {
+      errorEl.textContent = "Incorrect password.";
+      input.value = "";
+      input.focus();
+    }
+  }
+  submit.addEventListener("click", tryUnlock);
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") tryUnlock(); });
+})();
+
 /* State persists to this browser's localStorage -- see the SAVE / RESUME
    section near the bottom of this script. No Claude.ai / artifact
    dependency: this file is a fully standalone local HTML page. */
