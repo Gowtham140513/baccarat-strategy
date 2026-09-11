@@ -210,13 +210,19 @@ tr.corrected td { opacity: 0.55; text-decoration: line-through; }
     <div class="pred-cards" id="detailCards" style="display:none;"></div>
   </div>
 
-  <!-- SECTION 5: SIDE BETS -->
+  <!-- SECTION 5: SIDE BETS -- hidden for now (removed from the
+       display-toggle list below, so it never shows), but still fully
+       populated by renderSideBets() as before, so it's a one-line change
+       to bring back. -->
   <div class="panel" id="sideBetPanel" style="display:none;">
     <h2>5. Side-bet opportunities</h2>
     <div id="sideBetContent" class="subtitle">No side-bet signal right now.</div>
   </div>
 
-  <!-- SECTION 6: BETTING PROGRESSION -->
+  <!-- SECTION 6: BETTING PROGRESSION -- hidden for now (removed from the
+       display-toggle list below, so it never shows), but still fully
+       populated by renderStagePanel() as before, so it's a one-line change
+       to bring back. -->
   <div class="panel" id="stagePanel" style="display:none;">
     <h2>6. Betting progression</h2>
     <div class="stat-grid">
@@ -239,7 +245,10 @@ tr.corrected td { opacity: 0.55; text-decoration: line-through; }
     </div>
   </div>
 
-  <!-- SECTION 7: AUDIT HISTORY -->
+  <!-- SECTION 7: AUDIT HISTORY -- hidden for now (removed from the
+       display-toggle list below, so it never shows), but left in the DOM
+       and fully populated by renderHistory() as before, so it's a
+       one-line change to bring back. -->
   <div class="panel" id="historyPanel" style="display:none;">
     <h2>7. Audit history</h2>
     <div class="table-wrap">
@@ -250,6 +259,11 @@ tr.corrected td { opacity: 0.55; text-decoration: line-through; }
         <tbody id="historyBody"></tbody>
       </table>
     </div>
+  </div>
+
+  <!-- DEBUG / SAVE STATUS -- split out of the audit-history panel so
+       save-status feedback stays visible even with history hidden. -->
+  <div class="panel" id="debugPanel" style="display:none;">
     <div class="note" id="saveStatusNote">No save attempted yet.</div>
     <div class="row"><button id="viewSavedBtn" class="small">View saved data (debug)</button></div>
     <pre id="viewSavedOutput" style="display:none; white-space:pre-wrap; word-break:break-word; font-size:0.72rem; max-height:300px; overflow:auto; background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:0.6rem; margin-top:0.4rem;"></pre>
@@ -659,7 +673,7 @@ document.getElementById("lockBtn").addEventListener("click", () => {
   if (predefinedGrid.some(col => !isColumnBalanced(col))) return;
   setupLocked = true;
   renderPredefinedGrid();
-  ["topBar", "livePanel", "predPanel", "sideBetPanel", "stagePanel", "historyPanel"].forEach(id => {
+  ["topBar", "livePanel", "predPanel", "debugPanel"].forEach(id => {
     document.getElementById(id).style.display = "flex";
   });
   renderActualGrid();
@@ -695,7 +709,7 @@ editSetupBtn.addEventListener("click", () => {
   sideBets = {}; tieMemory = {}; history = []; predictionIndex = {}; bettingStage = 1; wins = 0; losses = 0;
   lastEntered = null; historyIdCounter = 1; colProgressed = {}; correctingCell = null;
   renderPredefinedGrid();
-  ["topBar", "livePanel", "predPanel", "sideBetPanel", "stagePanel", "historyPanel"].forEach(id => {
+  ["topBar", "livePanel", "predPanel", "debugPanel"].forEach(id => {
     document.getElementById(id).style.display = "none";
   });
   saveState();
@@ -1613,7 +1627,7 @@ document.getElementById("viewSavedBtn").addEventListener("click", () => {
 
   renderPredefinedGrid();
   if (setupLocked) {
-    ["topBar", "livePanel", "predPanel", "sideBetPanel", "stagePanel", "historyPanel"].forEach(id => {
+    ["topBar", "livePanel", "predPanel", "debugPanel"].forEach(id => {
       document.getElementById(id).style.display = "flex";
     });
     renderActualGrid();
